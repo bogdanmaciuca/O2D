@@ -38,10 +38,14 @@ typedef struct O2D_VertexBuffer_t {
 
 typedef struct O2D_Renderer_t {
     GLFWwindow *window;
+    uint16_t width, height;
+    float cameraX, cameraY;
     O2D_VertexBuffer vtxBuf;
     uint32_t VAO;
     uint32_t VBO;
     uint32_t shader;
+    int32_t projectionMatrixUniformLocation;
+    float projectionMatrix[16];
 } O2D_Renderer;
 
 bool O2D_Create(O2D_Renderer* renderer, const char* title, uint32_t width, uint32_t height);
@@ -59,5 +63,8 @@ void O2D_PushQuad(O2D_Renderer* renderer, O2D_Quad quad);
 void _O2D_EnsureBufferSize(O2D_Renderer* renderer, uint32_t requiredSize);
 
 void _O2D_CreateShaders(O2D_Renderer* renderer);
+
+void _O2D_UpdateProjectionMatrix(O2D_Renderer* renderer);
+
 #endif
 

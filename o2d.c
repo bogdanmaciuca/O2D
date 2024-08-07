@@ -4,8 +4,9 @@ const char *_O2D_vertexShader =
     "#version 330 core\n"
     "layout (location = 0) in vec2 aPos;\n"
     "layout (location = 1) in vec2 aTexCoord;\n"
+    "uniform mat4 uProj;\n"
     "void main() {\n"
-        "gl_Position = vec4(aPos, 1.0, 1.0);\n"
+        "gl_Position = uProj * vec4(aPos, 1.0, 1.0);\n"
     "}\n";
 
 const char *_O2D_fragmentShader =
@@ -17,6 +18,8 @@ const char *_O2D_fragmentShader =
 
 bool O2D_Create(O2D_Renderer* renderer, const char* title, uint32_t width, uint32_t height) {
     O2D_ZeroMem(renderer, sizeof(O2D_Renderer));
+    renderer->width = width;
+    renderer->height = height;
 
     if (glfwInit() == 0)
         return false;
@@ -41,6 +44,10 @@ bool O2D_Create(O2D_Renderer* renderer, const char* title, uint32_t width, uint3
 
     _O2D_CreateShaders(renderer);
     glUseProgram(renderer->shader);
+    renderer->projectionMatrixUniformLocation =
+        glGetUniformLocation(renderer->shader, "uProj");
+    _O2D_UpdateProjectionMatrix(renderer);
+
     return true;
 }
 
@@ -119,4 +126,34 @@ void _O2D_CreateShaders(O2D_Renderer* renderer) {
         glGetShaderInfoLog(renderer->shader, 512, NULL, errorLog);
         printf("SHADER: LINKING FAILED:\n%s\n", errorLog);
     }
+}
+
+void _O2D_UpdateProjectionMatrix(O2D_Renderer* renderer) {
+    float left   = renderer->cameraX - renderer->width / 2.0f;
+    float right  = renderer->cameraX + renderer->width / 2.0f;
+    float top    = renderer->cameraY - renderer->height / 2.0f;
+    float bottom = renderer->cameraY + renderer->height / 2.0f;
+    float near   = -1.0f;
+    float far    = 1.0f;
+    renderer->projectionMatrix[0]  = 2.0f / renderer->width;
+    renderer->projectionMatrix[1]  = 0;
+    renderer->projectionMatrix[2]  = 0;
+    renderer->projectionMatrix[3]  = (right + left) / renderer->width;
+    renderer->projectionMatrix[4]  = 0;
+    renderer->projectionMatrix[5]  = -2.0f / renderer->height;
+    renderer->projectionMatrix[6]  = 0;
+    renderer->projectionMatrix[7]  = (top + bottom) / renderer->height;
+    renderer->projectionMatrix[8]  = 0;
+    renderer->projectionMatrix[9]  = 0;
+    renderer->projectionMatrix[10] = -2.0f / (far - near);
+    renderer->projectionMatrix[11] = -(far + near) / (far - near);
+    renderer->projectionMatrix[12] = 0;
+    renderer->projectionMatrix[13] = 0;
+    renderer->projectionMatrix[14] = 0;
+    renderer->projectionMatrix[15] = 1;
+
+    glUniformMatrix4fv(
+        renderer->projectionMatrixUniformLocation,
+        1, GL_FALSE, &renderer->projectionMatrix[0]
+    );
 }
