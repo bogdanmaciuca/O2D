@@ -7,11 +7,11 @@ const char *_O2D_vertexShader =
     "layout (location = 2) in float aTexSlot;\n"
     "out vec2 oTexCoord;\n"
     "out float oTexSlot;\n"
-    "uniform mat4 uProj;\n"
+    "uniform mat4 uViewProj;\n"
     "void main() {\n"
         "oTexCoord = aTexCoord;\n"
         "oTexSlot = aTexSlot;\n"
-        "gl_Position = uProj * vec4(aPos, 1.0, 1.0);\n"
+        "gl_Position = uViewProj * vec4(aPos, 1.0, 1.0);\n"
     "}\n";
 
 const char *_O2D_fragmentShader =
@@ -22,8 +22,6 @@ const char *_O2D_fragmentShader =
     "uniform sampler2D uTextures[32];\n" // Supports a maximum of 32 texture slots
     "void main() {\n"
         "FragColor = texture(uTextures[uint(oTexSlot)], oTexCoord);\n"
-        //"FragColor = texture(uTextures[1], oTexCoord);\n"
-        //"FragColor = vec4(vec3(oTexSlot), 1.0);\n"
     "}\n";
 
 bool O2D_Create(O2D_Renderer* renderer, const char* title, uint32_t width, uint32_t height) {
@@ -60,8 +58,15 @@ bool O2D_Create(O2D_Renderer* renderer, const char* title, uint32_t width, uint3
     _O2D_CreateShaders(renderer);
     glUseProgram(renderer->shader);
     renderer->projectionMatrixUniformLocation =
-        glGetUniformLocation(renderer->shader, "uProj");
-    _O2D_UpdateProjectionMatrix(renderer);
+        glGetUniformLocation(renderer->shader, "uViewProj");
+    _O2D_UpdateViewProjMatrix(renderer);
+    // Fill the texture slots
+    uint32_t location = glGetUniformLocation(renderer->shader, "uTextures");
+    const int samplers[32] = {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+    };
+    glUniform1iv(location, O2D_MAX_TEX_SLOTS, &samplers[0]);
 
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &renderer->textureSlots.capacity);
 
@@ -85,13 +90,7 @@ void O2D_End(O2D_Renderer* renderer) {
 
 void O2D_RenderBatch(O2D_Renderer* renderer) {
     glUseProgram(renderer->shader);
-    // Fill the texture slots
-    uint32_t location = glGetUniformLocation(renderer->shader, "uTextures");
-    const int samplers[32] = {
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
-    };
-    glUniform1iv(location, O2D_MAX_TEX_SLOTS, &samplers[0]);
+    _O2D_UpdateViewProjMatrix(renderer);
     // Only reallocate data if the number of vertices exceeds the vertex buffer capacity
     if (renderer->vtxBuf.number > renderer->vtxBuf.maxNumber) {
         renderer->vtxBuf.maxNumber = renderer->vtxBuf.number;
@@ -157,6 +156,10 @@ void O2D_MakeRect(O2D_Quad quad, float x, float y, float width, float height, fl
     quad[1] = (O2D_Vertex){ x - width / 2.0f, y + height / 2.0f, 0.0f, 0.0f };
     quad[2] = (O2D_Vertex){ x + width / 2.0f, y + height / 2.0f, 1.0f, 0.0f };
     quad[3] = (O2D_Vertex){ x + width / 2.0f, y - height / 2.0f, 1.0f, 1.0f };
+    if (angle != 0.0f) {
+        for (uint8_t i = 0; i < 4; i++)
+            _O2D_RotatePoint(&quad[i].x, &quad[i].y, x, y, angle);
+    }
 }
 
 uint32_t O2D_CreateTexture(uint8_t *textureData, int32_t width, int32_t height) {
@@ -173,7 +176,34 @@ uint32_t O2D_CreateTexture(uint8_t *textureData, int32_t width, int32_t height) 
     return texture;
 }
 
-void _O2D_EnsureVtxBufSize(O2D_Renderer* renderer, uint32_t requiredCapacity) {
+void O2D_CreateAnimation(O2D_Animation *animation, uint32_t texture, uint32_t textureWidth, uint32_t textureHeight, uint16_t frameNum, float time) {
+    animation->texture = texture;
+    animation->textureWidth = textureWidth;
+    animation->textureHeight = textureHeight;
+    animation->frameNum = frameNum;
+    animation->time = time;
+    animation->timer = 0.0f;
+}
+
+void O2D_PushAnimationFrame(O2D_Renderer *renderer, O2D_Animation *animation, O2D_Quad rect, float deltaTime) {
+    if (animation->timer > animation->time / animation->frameNum) {
+        animation->timer -= animation->time / animation->frameNum;
+        animation->frameIndex++;
+    }
+    if (animation->frameIndex == animation->frameNum)
+        animation->frameIndex = 0;
+    rect[0].u = rect[1].u = (float)animation->frameIndex / animation->frameNum;
+    rect[2].u = rect[3].u = (float)(animation->frameIndex + 1) / animation->frameNum;
+    O2D_PushQuad(renderer, rect, animation->texture);
+    animation->timer += deltaTime;
+}
+
+void O2D_ResetAnimation(O2D_Animation *animation) {
+    animation->frameIndex = 0;
+    animation->timer = 0;
+}
+
+void _O2D_EnsureVtxBufSize(O2D_Renderer *renderer, uint32_t requiredCapacity) {
     if (renderer->vtxBuf.capacity < requiredCapacity) {
         renderer->vtxBuf.capacity = requiredCapacity * 2;
         renderer->vtxBuf.vertices =
@@ -219,33 +249,86 @@ void _O2D_CreateShaders(O2D_Renderer* renderer) {
     }
 }
 
-void _O2D_UpdateProjectionMatrix(O2D_Renderer* renderer) {
-    float left   = renderer->cameraX - renderer->width / 2.0f;
-    float right  = renderer->cameraX + renderer->width / 2.0f;
-    float top    = renderer->cameraY - renderer->height / 2.0f;
-    float bottom = renderer->cameraY + renderer->height / 2.0f;
+void _O2D_UpdateViewProjMatrix(O2D_Renderer* renderer) {
+    float left   = -renderer->width / 2.0f;
+    float right  = renderer->width / 2.0f;
+    float top    = -renderer->height / 2.0f;
+    float bottom = renderer->height / 2.0f;
     float near   = -1.0f;
     float far    = 1.0f;
-    renderer->projectionMatrix[0]  = 2.0f / renderer->width;
-    renderer->projectionMatrix[1]  = 0;
-    renderer->projectionMatrix[2]  = 0;
-    renderer->projectionMatrix[3]  = (right + left) / renderer->width;
-    renderer->projectionMatrix[4]  = 0;
-    renderer->projectionMatrix[5]  = -2.0f / renderer->height;
-    renderer->projectionMatrix[6]  = 0;
-    renderer->projectionMatrix[7]  = (top + bottom) / renderer->height;
-    renderer->projectionMatrix[8]  = 0;
-    renderer->projectionMatrix[9]  = 0;
-    renderer->projectionMatrix[10] = -2.0f / (far - near);
-    renderer->projectionMatrix[11] = -(far + near) / (far - near);
-    renderer->projectionMatrix[12] = 0;
-    renderer->projectionMatrix[13] = 0;
-    renderer->projectionMatrix[14] = 0;
-    renderer->projectionMatrix[15] = 1;
+    renderer->viewProjMatrix[0]  = 2.0f / renderer->width;
+    renderer->viewProjMatrix[1]  = 0;
+    renderer->viewProjMatrix[2]  = 0;
+    renderer->viewProjMatrix[3]  = (right + left) / renderer->width;
+    renderer->viewProjMatrix[4]  = 0;
+    renderer->viewProjMatrix[5]  = -2.0f / renderer->height;
+    renderer->viewProjMatrix[6]  = 0;
+    renderer->viewProjMatrix[7]  = (top + bottom) / renderer->height;
+    renderer->viewProjMatrix[8]  = 0;
+    renderer->viewProjMatrix[9]  = 0;
+    renderer->viewProjMatrix[10] = -2.0f / (far - near);
+    renderer->viewProjMatrix[11] = -(far + near) / (far - near);
+    renderer->viewProjMatrix[12] = 0;
+    renderer->viewProjMatrix[13] = 0;
+    renderer->viewProjMatrix[14] = 0;
+    renderer->viewProjMatrix[15] = 1;
+
+    _O2D_TranslateMatrix(renderer, renderer->viewProjMatrix, renderer->cameraX, renderer->cameraY);
 
     glUniformMatrix4fv(
         renderer->projectionMatrixUniformLocation,
-        1, GL_FALSE, &renderer->projectionMatrix[0]
+        1, GL_FALSE, &renderer->viewProjMatrix[0]
     );
 }
 
+void _O2D_RotatePoint(float *pointX, float *pointY, float pivotX, float pivotY, float angle) {
+  float s = sin(angle);
+  float c = cos(angle);
+
+  // translate point back to origin:
+  *pointX -= pivotX;
+  *pointY -= pivotY;
+
+  // rotate point
+  float xnew = *pointX * c - *pointY * s;
+  float ynew = *pointX * s + *pointY * c;
+
+  // translate point back:
+  *pointX = xnew + pivotX;
+  *pointY = ynew + pivotY;
+}
+
+void _O2D_TranslateMatrix(O2D_Renderer* renderer, float mat[16], float dx, float dy) {
+    mat[12] -= dx / renderer->width * 2;
+    mat[13] += dy / renderer->height * 2;
+}
+
+//template<typename T, qualifier Q>
+//GLM_FUNC_QUALIFIER mat<4, 4, T, Q> rotate(mat<4, 4, T, Q> const& m, T angle, vec<3, T, Q> const& v)
+//{
+//    T const a = angle;
+//    T const c = cos(a);
+//    T const s = sin(a);
+//
+//    vec<3, T, Q> axis(normalize(v));
+//    vec<3, T, Q> temp((T(1) - c) * axis);
+//
+//    mat<4, 4, T, Q> Rotate;
+//    Rotate[0][0] = c + temp[0] * axis[0];
+//    Rotate[0][1] = temp[0] * axis[1] + s * axis[2];
+//    Rotate[0][2] = temp[0] * axis[2] - s * axis[1];
+//
+//    Rotate[1][0] = temp[1] * axis[0] - s * axis[2];
+//    Rotate[1][1] = c + temp[1] * axis[1];
+//    Rotate[1][2] = temp[1] * axis[2] + s * axis[0];
+//
+//    Rotate[2][0] = temp[2] * axis[0] + s * axis[1];
+//    Rotate[2][1] = temp[2] * axis[1] - s * axis[0];
+//    Rotate[2][2] = c + temp[2] * axis[2];
+//
+//    mat<4, 4, T, Q> Result;
+//    Result[0] = m[0] * Rotate[0][0] + m[1] * Rotate[0][1] + m[2] * Rotate[0][2];
+//    Result[1] = m[0] * Rotate[1][0] + m[1] * Rotate[1][1] + m[2] * Rotate[1][2];
+//    Result[2] = m[0] * Rotate[2][0] + m[1] * Rotate[2][1] + m[2] * Rotate[2][2];
+//    Result[3] = m[3];
+//}
