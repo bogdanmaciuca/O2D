@@ -112,7 +112,7 @@ void O2D_ClearBatch(O2D_Renderer *renderer) {
     renderer->vtxBuf.number = 0;
     renderer->textureSlots.usedSlots = 0;
     for (int i = 0; i < O2D_MAX_TEX_SLOTS; i++)
-        renderer->textureSlots.slots[i] = O2D_MAX_TEX_SLOTS;
+renderer->textureSlots.slots[i] = O2D_MAX_TEX_SLOTS;
 }
 
 bool O2D_WindowIsOpen(O2D_Renderer* renderer) {
@@ -332,3 +332,4 @@ void _O2D_TranslateMatrix(O2D_Renderer* renderer, float mat[16], float dx, float
 //    Result[2] = m[0] * Rotate[2][0] + m[1] * Rotate[2][1] + m[2] * Rotate[2][2];
 //    Result[3] = m[3];
 //}
+

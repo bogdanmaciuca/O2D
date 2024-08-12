@@ -1,9 +1,9 @@
 /*
 * TODO:
-* - animations
 * - instanced rendering
-* - camera rotation
 * - resizing
+* - drawing triangles and adding colors
+* - camera rotation
 */
 #include "o2d.h"
 #define STB_IMAGE_IMPLEMENTATION
@@ -73,18 +73,10 @@ int main() {
 
         O2D_Begin(&renderer);
         switch(state) {
-            case 0:
-                O2D_PushAnimationFrame(&renderer, &idle, rect, deltaTime);
-                break;
-            case 1:
-                O2D_PushAnimationFrame(&renderer, &move, rect, deltaTime);
-                break;
-            case 2:
-                O2D_PushAnimationFrame(&renderer, &shoot, rect, deltaTime);
-                break;
-            case 3:
-                O2D_PushAnimationFrame(&renderer, &reload, rect, deltaTime);
-                break;
+            case 0: O2D_PushAnimationFrame(&renderer, &idle, rect, deltaTime); break;
+            case 1: O2D_PushAnimationFrame(&renderer, &move, rect, deltaTime); break;
+            case 2: O2D_PushAnimationFrame(&renderer, &shoot, rect, deltaTime); break;
+            case 3: O2D_PushAnimationFrame(&renderer, &reload, rect, deltaTime); break;
         }
         O2D_End(&renderer);
 

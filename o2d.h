@@ -14,7 +14,8 @@
 
 enum {
     O2D_MIN_VTX_NUM = 64,
-    O2D_MAX_TEX_SLOTS = 32 // This value is hardcoded in the fragment shader
+    O2D_MAX_TEX_SLOTS = 32, // This value is hardcoded in the fragment shader
+    O2D_MIN_INST_BUF_OFFSET_NUM = 32
 };
 
 typedef struct O2D_Vertex_t {
@@ -101,6 +102,7 @@ void O2D_CreateAnimation(O2D_Animation *animation, uint32_t texture, uint32_t te
 // used for other drawing calls without being reinitialized
 void O2D_PushAnimationFrame(O2D_Renderer* renderer, O2D_Animation *animation, O2D_Quad rect, float deltaTime);
 
+// Sets animation timer and frameIndex to 0
 void O2D_ResetAnimation(O2D_Animation *animation);
 
 // Utility: Grows the vertex buffer capacity if necessary
