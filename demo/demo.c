@@ -5,9 +5,9 @@
 * - drawing triangles and adding colors
 * - camera rotation
 */
-#include "o2d.h"
+#include "../include/o2d.h"
 #define STB_IMAGE_IMPLEMENTATION
-#include "demo/stb_image.h"
+#include "stb_image.h"
 
 #ifndef M_PI
 #define M_PI 3.1415926535897932384

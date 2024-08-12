@@ -11,8 +11,8 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
-#include "inc/glad.h"
-#include "inc/GLFW/glfw3.h"
+#include "vendor/glad.h"
+#include "vendor/GLFW/glfw3.h"
 
 #define O2D_ZeroMem(ptr, size) memset(ptr, 0, size)
 

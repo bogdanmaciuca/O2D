@@ -1,4 +1,4 @@
-#include "o2d.h"
+#include "../include/o2d.h"
 
 const char *_O2D_vertexShader =
     "#version 450 core\n"
