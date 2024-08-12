@@ -1,6 +1,10 @@
 #ifndef O2D_H
 #define O2D_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -15,7 +19,6 @@
 enum {
     O2D_MIN_VTX_NUM = 64,
     O2D_MAX_TEX_SLOTS = 32, // This value is hardcoded in the fragment shader
-    O2D_MIN_INST_BUF_OFFSET_NUM = 32
 };
 
 typedef struct O2D_Vertex_t {
@@ -122,6 +125,10 @@ void _O2D_RotateMatrix(float mat[16], float angle);
 
 // Utility: Rotates point another another point (pivot) by angle (radians)
 void _O2D_RotatePoint(float *pointX, float *pointY, float pivotX, float pivotY, float angle);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

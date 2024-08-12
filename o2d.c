@@ -24,14 +24,19 @@ const char *_O2D_fragmentShader =
         "FragColor = texture(uTextures[uint(oTexSlot)], oTexCoord);\n"
     "}\n";
 
+void _O2D_WindowResizeCallback(GLFWwindow *window, int32_t width, int32_t height) {
+    glViewport(0, 0, width, height);
+}
 bool O2D_Create(O2D_Renderer* renderer, const char* title, uint32_t width, uint32_t height) {
     O2D_ZeroMem(renderer, sizeof(O2D_Renderer));
     renderer->width = width;
     renderer->height = height;
-
     if (glfwInit() == 0)
         return false;
     renderer->window = glfwCreateWindow(width, height, title, 0, 0);
+    glfwSetWindowAspectRatio(renderer->window, renderer->width, renderer->height);
+    glfwSetFramebufferSizeCallback(renderer->window, _O2D_WindowResizeCallback);
+
     glfwMakeContextCurrent(renderer->window);
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         printf("Could not initialize glad.\n");

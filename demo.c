@@ -32,7 +32,7 @@ void LoadAnimation(O2D_Animation *animation, const char* path, uint16_t frameNum
 int main() {
     stbi_set_flip_vertically_on_load(true);  
     O2D_Renderer renderer;
-    O2D_Create(&renderer, "O2D Demo", 800, 600);
+    O2D_Create(&renderer, "O2D Demo", 1024, 768);
     glClearColor(0.3f, 0.5f, 0.7f, 1.0f);
 
     O2D_Animation idle, move, shoot, reload;
